@@ -23,7 +23,7 @@ layout="wide"
 @st.cache_resource
 def load_artifacts():
 
-```
+
 with open("best_model.pkl", "rb") as f:
     model = pickle.load(f)
 
@@ -34,7 +34,7 @@ with open("scaler.pkl", "rb") as f:
     scaler = pickle.load(f)
 
 return model, encoders, scaler
-```
+
 
 model, encoders, scaler = load_artifacts()
 
@@ -46,7 +46,7 @@ model, encoders, scaler = load_artifacts()
 
 def make_prediction(input_data):
 
-```
+
 input_df = pd.DataFrame([input_data])
 
 # Encode categorical columns
@@ -83,7 +83,7 @@ else:
     result = "No Churn"
 
 return result, probability
-```
+
 
 # ---------------------------------------------------
 
@@ -111,7 +111,7 @@ col1, col2, col3 = st.columns(3)
 
 with col1:
 
-```
+
 gender = st.selectbox(
     "Gender",
     ["Female", "Male"]
@@ -131,11 +131,11 @@ dependents = st.selectbox(
     "Dependents",
     ["Yes", "No"]
 )
-```
+
 
 with col2:
 
-```
+
 tenure = st.number_input(
     "Tenure (months)",
     min_value=0,
@@ -152,11 +152,10 @@ multiple_lines = st.selectbox(
     "Multiple Lines",
     ["Yes", "No", "No phone service"]
 )
-```
 
 with col3:
 
-```
+
 internet_service = st.selectbox(
     "Internet Service",
     ["DSL", "Fiber optic", "No"]
@@ -171,7 +170,7 @@ paperless_billing = st.selectbox(
     "Paperless Billing",
     ["Yes", "No"]
 )
-```
+
 
 # ---------------------------------------------------
 
@@ -185,7 +184,6 @@ col1, col2, col3 = st.columns(3)
 
 with col1:
 
-```
 online_security = st.selectbox(
     "Online Security",
     ["Yes", "No", "No internet service"]
@@ -195,11 +193,11 @@ online_backup = st.selectbox(
     "Online Backup",
     ["Yes", "No", "No internet service"]
 )
-```
+
 
 with col2:
 
-```
+
 device_protection = st.selectbox(
     "Device Protection",
     ["Yes", "No", "No internet service"]
@@ -209,11 +207,11 @@ tech_support = st.selectbox(
     "Tech Support",
     ["Yes", "No", "No internet service"]
 )
-```
+
 
 with col3:
 
-```
+
 streaming_tv = st.selectbox(
     "Streaming TV",
     ["Yes", "No", "No internet service"]
@@ -223,7 +221,7 @@ streaming_movies = st.selectbox(
     "Streaming Movies",
     ["Yes", "No", "No internet service"]
 )
-```
+
 
 # ---------------------------------------------------
 
@@ -237,25 +235,24 @@ col1, col2 = st.columns(2)
 
 with col1:
 
-```
 monthly_charges = st.number_input(
     "Monthly Charges",
     min_value=0.0,
     value=29.85,
     step=0.01
 )
-```
+
 
 with col2:
 
-```
+
 total_charges = st.number_input(
     "Total Charges",
     min_value=0.0,
     value=29.85,
     step=0.01
 )
-```
+
 
 payment_method = st.selectbox(
 "Payment Method",
@@ -280,7 +277,6 @@ if st.button(
 use_container_width=True
 ):
 
-```
 example_input = {
 
     "gender": gender,
@@ -352,4 +348,4 @@ if prediction is not None:
     st.write(
         f"**Prediction:** {prediction}"
     )
-```
+
