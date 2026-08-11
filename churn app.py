@@ -23,18 +23,18 @@ layout="wide"
 @st.cache_resource
 def load_artifacts():
 
+def load_model():
+    
+    with open("best_model.pkl", "rb") as f:
+        model = pickle.load(f)
 
-with open("best_model.pkl", "rb") as f:
-    model = pickle.load(f)
+    with open("encoder.pkl", "rb") as f:
+        encoder = pickle.load(f)
 
-with open("encoder.pkl", "rb") as f:
-    encoders = pickle.load(f)
+    with open("scaler.pkl", "rb") as f:
+        scaler = pickle.load(f)
 
-with open("scaler.pkl", "rb") as f:
-    scaler = pickle.load(f)
-
-return model, encoders, scaler
-
+    return model, encoder, scaler
 
 model, encoders, scaler = load_artifacts()
 
