@@ -1,52 +1,95 @@
 import streamlit as st
 import pandas as pd
 import pickle
+import numpy as np
 
-# -----------------------------
-# Page Configuration
-# -----------------------------
+# ============================================================
+# PAGE CONFIGURATION
+# ============================================================
+
 st.set_page_config(
     page_title="Customer Churn Prediction",
     page_icon="📊",
-    layout="centered"
+    layout="wide"
 )
 
 st.title("📊 Customer Churn Prediction")
-st.write("Enter customer details to predict whether the customer is likely to churn.")
+st.markdown(
+    "Enter the customer information below to predict the likelihood of churn."
+)
 
-# -----------------------------
-# Load Model, Encoder and Scaler
-# -----------------------------
+# ============================================================
+# LOAD PICKLE FILES
+# ============================================================
+
 @st.cache_resource
-def load_files():
-    with open("best_model.pkl", "rb") as model_file:
-        model = pickle.load(model_file)
+def load_pickle_files():
 
-    with open("encoder.pkl", "rb") as encoder_file:
-        encoders = pickle.load(encoder_file)
+    with open("best_model.pkl", "rb") as f:
+        model = pickle.load(f)
 
-    with open("scaler.pkl", "rb") as scaler_file:
-        scaler = pickle.load(scaler_file)
+    with open("encoder.pkl", "rb") as f:
+        encoders = pickle.load(f)
+
+    with open("scaler.pkl", "rb") as f:
+        scaler = pickle.load(f)
 
     return model, encoders, scaler
 
 
 try:
-    model, encoders, scaler = load_files()
+
+    model, encoders, scaler = load_pickle_files()
+
 except Exception as e:
-    st.error("Unable to load the model files.")
-    st.error(str(e))
+
+    st.error("❌ Could not load the pickle files.")
+
+    st.exception(e)
+
     st.stop()
 
 
-# -----------------------------
-# User Inputs
-# -----------------------------
-st.subheader("Customer Information")
+# ============================================================
+# DISPLAY MODEL INFORMATION
+# ============================================================
+
+with st.expander("🔎 Model Information"):
+
+    st.write("Model:", type(model).__name__)
+
+    if hasattr(model, "n_features_in_"):
+        st.write(
+            "Number of features expected by model:",
+            model.n_features_in_
+        )
+
+    if hasattr(scaler, "feature_names_in_"):
+
+        st.write(
+            "Features expected by scaler:"
+        )
+
+        st.write(
+            list(scaler.feature_names_in_)
+        )
+
+
+# ============================================================
+# CUSTOMER INPUTS
+# ============================================================
+
+st.header("Customer Information")
 
 col1, col2 = st.columns(2)
 
+
+# ------------------------------------------------------------
+# Categorical inputs
+# ------------------------------------------------------------
+
 with col1:
+
     gender = st.selectbox(
         "Gender",
         ["Male", "Female"]
@@ -67,9 +110,15 @@ with col1:
         ["Yes", "No"]
     )
 
+
+# ------------------------------------------------------------
+# Numerical inputs
+# ------------------------------------------------------------
+
 with col2:
+
     tenure = st.number_input(
-        "Tenure (Months)",
+        "Tenure",
         min_value=0,
         max_value=100,
         value=12
@@ -88,54 +137,209 @@ with col2:
     )
 
 
-# -----------------------------
-# Prediction
-# -----------------------------
-if st.button("🔮 Predict Churn"):
+# ============================================================
+# CREATE USER INPUT DATAFRAME
+# ============================================================
 
-    input_data = pd.DataFrame({
-        "Gender": [gender],
-        "SeniorCitizen": [senior_citizen],
-        "Partner": [partner],
-        "Dependents": [dependents],
-        "tenure": [tenure],
-        "MonthlyCharges": [monthly_charges],
-        "TotalCharges": [total_charges]
-    })
+input_data = pd.DataFrame({
+
+    "Gender": [gender],
+
+    "SeniorCitizen": [senior_citizen],
+
+    "Partner": [partner],
+
+    "Dependents": [dependents],
+
+    "tenure": [tenure],
+
+    "MonthlyCharges": [monthly_charges],
+
+    "TotalCharges": [total_charges]
+
+})
+
+
+# ============================================================
+# PREDICTION BUTTON
+# ============================================================
+
+if st.button(
+    "🔮 Predict Customer Churn",
+    use_container_width=True
+):
 
     try:
-        # Apply saved encoders
-        for column, encoder in encoders.items():
-            if column in input_data.columns:
-                input_data[column] = encoder.transform(
-                    input_data[column].astype(str)
-                )
 
-        # Apply scaler
-        input_scaled = scaler.transform(input_data)
+        # ----------------------------------------------------
+        # COPY INPUT DATA
+        # ----------------------------------------------------
 
-        # Prediction
-        prediction = model.predict(input_scaled)[0]
+        processed_data = input_data.copy()
 
-        # Probability
-        if hasattr(model, "predict_proba"):
-            probability = model.predict_proba(input_scaled)[0][1]
+
+        # ----------------------------------------------------
+        # APPLY SAVED ENCODERS
+        # ----------------------------------------------------
+
+        if isinstance(encoders, dict):
+
+            for column, encoder in encoders.items():
+
+                if column in processed_data.columns:
+
+                    try:
+
+                        processed_data[column] = encoder.transform(
+                            processed_data[column].astype(str)
+                        )
+
+                    except Exception:
+
+                        st.warning(
+                            f"Could not encode column: {column}"
+                        )
+
+
+        # ----------------------------------------------------
+        # GET FEATURES EXPECTED BY SCALER
+        # ----------------------------------------------------
+
+        if hasattr(scaler, "feature_names_in_"):
+
+            required_features = list(
+                scaler.feature_names_in_
+            )
+
         else:
-            probability = None
 
-        st.subheader("Prediction Result")
+            required_features = list(
+                processed_data.columns
+            )
+
+
+        # ----------------------------------------------------
+        # CHECK REQUIRED FEATURES
+        # ----------------------------------------------------
+
+        missing_features = [
+
+            feature
+
+            for feature in required_features
+
+            if feature not in processed_data.columns
+
+        ]
+
+
+        if missing_features:
+
+            st.error(
+                "❌ Missing features required by the scaler:"
+            )
+
+            st.write(missing_features)
+
+            st.stop()
+
+
+        # ----------------------------------------------------
+        # KEEP ONLY FEATURES USED DURING TRAINING
+        # ----------------------------------------------------
+
+        processed_data = processed_data[
+            required_features
+        ]
+
+
+        # ----------------------------------------------------
+        # APPLY SCALER
+        # ----------------------------------------------------
+
+        processed_scaled = scaler.transform(
+            processed_data
+        )
+
+
+        # ----------------------------------------------------
+        # MODEL PREDICTION
+        # ----------------------------------------------------
+
+        prediction = model.predict(
+            processed_scaled
+        )[0]
+
+
+        # ----------------------------------------------------
+        # PREDICTION PROBABILITY
+        # ----------------------------------------------------
+
+        probability = None
+
+        if hasattr(model, "predict_proba"):
+
+            probabilities = model.predict_proba(
+                processed_scaled
+            )
+
+            probability = probabilities[0][1]
+
+
+        # ====================================================
+        # DISPLAY RESULT
+        # ====================================================
+
+        st.header("Prediction Result")
+
 
         if prediction == 1:
-            st.error("⚠️ Customer is likely to churn.")
+
+            st.error(
+                "⚠️ Customer is likely to churn."
+            )
+
         else:
-            st.success("✅ Customer is unlikely to churn.")
+
+            st.success(
+                "✅ Customer is unlikely to churn."
+            )
+
+
+        # ----------------------------------------------------
+        # PROBABILITY
+        # ----------------------------------------------------
 
         if probability is not None:
+
             st.metric(
                 "Churn Probability",
                 f"{probability * 100:.2f}%"
             )
 
+
+            st.progress(
+                float(probability)
+            )
+
+
+        # ----------------------------------------------------
+        # SHOW PROCESSED DATA
+        # ----------------------------------------------------
+
+        with st.expander(
+            "🔍 View Processed Input"
+        ):
+
+            st.dataframe(
+                processed_data
+            )
+
+
     except Exception as e:
-        st.error("Prediction failed.")
+
+        st.error(
+            "❌ Prediction failed."
+        )
+
         st.exception(e)
