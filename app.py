@@ -1,60 +1,141 @@
-from flask import Flask, render_template, request
+import streamlit as st
 import pandas as pd
 import pickle
 
-# Load model, encoders, and scaler
-with open('best_model.pkl', 'rb') as model_file:
-    loaded_model = pickle.load(model_file)
-with open('encoder.pkl', 'rb') as encoders_file:
-    encoders = pickle.load(encoders_file)
-with open('scaler.pkl', 'rb') as scaler_file:
-    scaler_data = pickle.load(scaler_file)
+# -----------------------------
+# Page Configuration
+# -----------------------------
+st.set_page_config(
+    page_title="Customer Churn Prediction",
+    page_icon="📊",
+    layout="centered"
+)
 
-app = Flask(__name__)
+st.title("📊 Customer Churn Prediction")
+st.write("Enter customer details to predict whether the customer is likely to churn.")
 
-def make_prediction(input_data):
-    input_df = pd.DataFrame([input_data])
+# -----------------------------
+# Load Model, Encoder and Scaler
+# -----------------------------
+@st.cache_resource
+def load_files():
+    with open("best_model.pkl", "rb") as model_file:
+        model = pickle.load(model_file)
 
-    for col, encoder in encoders.items():
-        input_df[col] = encoder.transform(input_df[col])
+    with open("encoder.pkl", "rb") as encoder_file:
+        encoders = pickle.load(encoder_file)
 
-    numerical_cols = ['tenure', 'MonthlyCharges', 'TotalCharges']
-    input_df[numerical_cols] = scaler_data.transform(input_df[numerical_cols])
+    with open("scaler.pkl", "rb") as scaler_file:
+        scaler = pickle.load(scaler_file)
 
-    prediction = loaded_model.predict(input_df)[0]
-    probability = loaded_model.predict_proba(input_df)[0, 1]
-    return "Churn" if prediction == 1 else "No Churn", probability
+    return model, encoders, scaler
 
-@app.route('/', methods=['GET', 'POST'])
-def index():
-    prediction = None
-    probability = None
-    if request.method == 'POST':
-        input_data = {
-            'gender': request.form['gender'],
-            'SeniorCitizen': int(request.form['SeniorCitizen']),
-            'Partner': request.form['Partner'],
-            'Dependents': request.form['Dependents'],
-            'tenure': int(request.form['tenure']),
-            'PhoneService': request.form['PhoneService'],
-            'MultipleLines': request.form['MultipleLines'],
-            'InternetService': request.form['InternetService'],
-            'OnlineSecurity': request.form['OnlineSecurity'],
-            'OnlineBackup': request.form['OnlineBackup'],
-            'DeviceProtection': request.form['DeviceProtection'],
-            'TechSupport': request.form['TechSupport'],
-            'StreamingTV': request.form['StreamingTV'],
-            'StreamingMovies': request.form['StreamingMovies'],
-            'Contract': request.form['Contract'],
-            'PaperlessBilling': request.form['PaperlessBilling'],
-            'PaymentMethod': request.form['PaymentMethod'],
-            'MonthlyCharges': float(request.form['MonthlyCharges']),
-            'TotalCharges': float(request.form['TotalCharges']),
-        }
 
-        prediction, probability = make_prediction(input_data)
+try:
+    model, encoders, scaler = load_files()
+except Exception as e:
+    st.error("Unable to load the model files.")
+    st.error(str(e))
+    st.stop()
 
-    return render_template('index.html', prediction=prediction, probability=probability)
 
-if __name__ == '__main__':
-    app.run(debug=True)
+# -----------------------------
+# User Inputs
+# -----------------------------
+st.subheader("Customer Information")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    gender = st.selectbox(
+        "Gender",
+        ["Male", "Female"]
+    )
+
+    senior_citizen = st.selectbox(
+        "Senior Citizen",
+        [0, 1]
+    )
+
+    partner = st.selectbox(
+        "Partner",
+        ["Yes", "No"]
+    )
+
+    dependents = st.selectbox(
+        "Dependents",
+        ["Yes", "No"]
+    )
+
+with col2:
+    tenure = st.number_input(
+        "Tenure (Months)",
+        min_value=0,
+        max_value=100,
+        value=12
+    )
+
+    monthly_charges = st.number_input(
+        "Monthly Charges",
+        min_value=0.0,
+        value=50.0
+    )
+
+    total_charges = st.number_input(
+        "Total Charges",
+        min_value=0.0,
+        value=500.0
+    )
+
+
+# -----------------------------
+# Prediction
+# -----------------------------
+if st.button("🔮 Predict Churn"):
+
+    input_data = pd.DataFrame({
+        "Gender": [gender],
+        "SeniorCitizen": [senior_citizen],
+        "Partner": [partner],
+        "Dependents": [dependents],
+        "tenure": [tenure],
+        "MonthlyCharges": [monthly_charges],
+        "TotalCharges": [total_charges]
+    })
+
+    try:
+        # Apply saved encoders
+        for column, encoder in encoders.items():
+            if column in input_data.columns:
+                input_data[column] = encoder.transform(
+                    input_data[column].astype(str)
+                )
+
+        # Apply scaler
+        input_scaled = scaler.transform(input_data)
+
+        # Prediction
+        prediction = model.predict(input_scaled)[0]
+
+        # Probability
+        if hasattr(model, "predict_proba"):
+            probability = model.predict_proba(input_scaled)[0][1]
+        else:
+            probability = None
+
+        st.subheader("Prediction Result")
+
+        if prediction == 1:
+            st.error("⚠️ Customer is likely to churn.")
+        else:
+            st.success("✅ Customer is unlikely to churn.")
+
+        if probability is not None:
+            st.metric(
+                "Churn Probability",
+                f"{probability * 100:.2f}%"
+            )
+
+    except Exception as e:
+        st.error("Prediction failed.")
+        st.exception(e)
