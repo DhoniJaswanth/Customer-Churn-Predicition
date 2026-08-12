@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import pickle
-import numpy as np
 
 # ============================================================
 # PAGE CONFIGURATION
@@ -14,16 +13,18 @@ st.set_page_config(
 )
 
 st.title("📊 Customer Churn Prediction")
-st.markdown(
-    "Enter the customer information below to predict the likelihood of churn."
+st.write(
+    "Enter customer details below to predict whether the customer "
+    "is likely to churn."
 )
+
 
 # ============================================================
 # LOAD PICKLE FILES
 # ============================================================
 
 @st.cache_resource
-def load_pickle_files():
+def load_files():
 
     with open("best_model.pkl", "rb") as f:
         model = pickle.load(f)
@@ -38,41 +39,12 @@ def load_pickle_files():
 
 
 try:
-
-    model, encoders, scaler = load_pickle_files()
+    model, encoders, scaler = load_files()
 
 except Exception as e:
-
-    st.error("❌ Could not load the pickle files.")
-
+    st.error("❌ Could not load model files.")
     st.exception(e)
-
     st.stop()
-
-
-# ============================================================
-# DISPLAY MODEL INFORMATION
-# ============================================================
-
-with st.expander("🔎 Model Information"):
-
-    st.write("Model:", type(model).__name__)
-
-    if hasattr(model, "n_features_in_"):
-        st.write(
-            "Number of features expected by model:",
-            model.n_features_in_
-        )
-
-    if hasattr(scaler, "feature_names_in_"):
-
-        st.write(
-            "Features expected by scaler:"
-        )
-
-        st.write(
-            list(scaler.feature_names_in_)
-        )
 
 
 # ============================================================
@@ -81,12 +53,12 @@ with st.expander("🔎 Model Information"):
 
 st.header("Customer Information")
 
-col1, col2 = st.columns(2)
+col1, col2, col3 = st.columns(3)
 
 
-# ------------------------------------------------------------
-# Categorical inputs
-# ------------------------------------------------------------
+# ============================================================
+# COLUMN 1
+# ============================================================
 
 with col1:
 
@@ -110,18 +82,108 @@ with col1:
         ["Yes", "No"]
     )
 
-
-# ------------------------------------------------------------
-# Numerical inputs
-# ------------------------------------------------------------
-
-with col2:
-
     tenure = st.number_input(
         "Tenure",
         min_value=0,
         max_value=100,
         value=12
+    )
+
+
+# ============================================================
+# COLUMN 2
+# ============================================================
+
+with col2:
+
+    phone_service = st.selectbox(
+        "Phone Service",
+        ["Yes", "No"]
+    )
+
+    multiple_lines = st.selectbox(
+        "Multiple Lines",
+        ["Yes", "No", "No phone service"]
+    )
+
+    internet_service = st.selectbox(
+        "Internet Service",
+        ["DSL", "Fiber optic", "No"]
+    )
+
+    online_security = st.selectbox(
+        "Online Security",
+        ["Yes", "No", "No internet service"]
+    )
+
+    online_backup = st.selectbox(
+        "Online Backup",
+        ["Yes", "No", "No internet service"]
+    )
+
+
+# ============================================================
+# COLUMN 3
+# ============================================================
+
+with col3:
+
+    device_protection = st.selectbox(
+        "Device Protection",
+        ["Yes", "No", "No internet service"]
+    )
+
+    tech_support = st.selectbox(
+        "Tech Support",
+        ["Yes", "No", "No internet service"]
+    )
+
+    streaming_tv = st.selectbox(
+        "Streaming TV",
+        ["Yes", "No", "No internet service"]
+    )
+
+    streaming_movies = st.selectbox(
+        "Streaming Movies",
+        ["Yes", "No", "No internet service"]
+    )
+
+
+# ============================================================
+# OTHER CUSTOMER INFORMATION
+# ============================================================
+
+st.subheader("Subscription Information")
+
+col4, col5 = st.columns(2)
+
+with col4:
+
+    contract = st.selectbox(
+        "Contract",
+        [
+            "Month-to-month",
+            "One year",
+            "Two year"
+        ]
+    )
+
+    paperless_billing = st.selectbox(
+        "Paperless Billing",
+        ["Yes", "No"]
+    )
+
+
+with col5:
+
+    payment_method = st.selectbox(
+        "Payment Method",
+        [
+            "Electronic check",
+            "Mailed check",
+            "Bank transfer (automatic)",
+            "Credit card (automatic)"
+        ]
     )
 
     monthly_charges = st.number_input(
@@ -138,30 +200,7 @@ with col2:
 
 
 # ============================================================
-# CREATE USER INPUT DATAFRAME
-# ============================================================
-
-input_data = pd.DataFrame({
-
-    "Gender": [gender],
-
-    "SeniorCitizen": [senior_citizen],
-
-    "Partner": [partner],
-
-    "Dependents": [dependents],
-
-    "tenure": [tenure],
-
-    "MonthlyCharges": [monthly_charges],
-
-    "TotalCharges": [total_charges]
-
-})
-
-
-# ============================================================
-# PREDICTION BUTTON
+# PREDICTION
 # ============================================================
 
 if st.button(
@@ -172,125 +211,139 @@ if st.button(
     try:
 
         # ----------------------------------------------------
-        # COPY INPUT DATA
+        # CREATE ORIGINAL 19 FEATURE DATAFRAME
         # ----------------------------------------------------
 
-        processed_data = input_data.copy()
+        input_data = pd.DataFrame({
+
+            "gender": [gender],
+
+            "SeniorCitizen": [senior_citizen],
+
+            "Partner": [partner],
+
+            "Dependents": [dependents],
+
+            "tenure": [tenure],
+
+            "PhoneService": [phone_service],
+
+            "MultipleLines": [multiple_lines],
+
+            "InternetService": [internet_service],
+
+            "OnlineSecurity": [online_security],
+
+            "OnlineBackup": [online_backup],
+
+            "DeviceProtection": [device_protection],
+
+            "TechSupport": [tech_support],
+
+            "StreamingTV": [streaming_tv],
+
+            "StreamingMovies": [streaming_movies],
+
+            "Contract": [contract],
+
+            "PaperlessBilling": [paperless_billing],
+
+            "PaymentMethod": [payment_method],
+
+            "MonthlyCharges": [monthly_charges],
+
+            "TotalCharges": [total_charges]
+
+        })
 
 
         # ----------------------------------------------------
-        # APPLY SAVED ENCODERS
+        # ENCODE CATEGORICAL VARIABLES
         # ----------------------------------------------------
 
-        if isinstance(encoders, dict):
+        for column, encoder in encoders.items():
 
-            for column, encoder in encoders.items():
+            # Churn is the target, not an input
+            if column == "Churn":
+                continue
 
-                if column in processed_data.columns:
+            if column in input_data.columns:
 
-                    try:
-
-                        processed_data[column] = encoder.transform(
-                            processed_data[column].astype(str)
-                        )
-
-                    except Exception:
-
-                        st.warning(
-                            f"Could not encode column: {column}"
-                        )
+                input_data[column] = encoder.transform(
+                    input_data[column].astype(str)
+                )
 
 
         # ----------------------------------------------------
-        # GET FEATURES EXPECTED BY SCALER
+        # SCALE ONLY NUMERICAL FEATURES
         # ----------------------------------------------------
 
-        if hasattr(scaler, "feature_names_in_"):
-
-            required_features = list(
-                scaler.feature_names_in_
-            )
-
-        else:
-
-            required_features = list(
-                processed_data.columns
-            )
-
-
-        # ----------------------------------------------------
-        # CHECK REQUIRED FEATURES
-        # ----------------------------------------------------
-
-        missing_features = [
-
-            feature
-
-            for feature in required_features
-
-            if feature not in processed_data.columns
-
+        numerical_features = [
+            "tenure",
+            "MonthlyCharges",
+            "TotalCharges"
         ]
 
 
-        if missing_features:
-
-            st.error(
-                "❌ Missing features required by the scaler:"
-            )
-
-            st.write(missing_features)
-
-            st.stop()
-
-
-        # ----------------------------------------------------
-        # KEEP ONLY FEATURES USED DURING TRAINING
-        # ----------------------------------------------------
-
-        processed_data = processed_data[
-            required_features
-        ]
-
-
-        # ----------------------------------------------------
-        # APPLY SCALER
-        # ----------------------------------------------------
-
-        processed_scaled = scaler.transform(
-            processed_data
+        input_data[numerical_features] = scaler.transform(
+            input_data[numerical_features]
         )
 
 
         # ----------------------------------------------------
-        # MODEL PREDICTION
+        # CHECK MODEL FEATURES
+        # ----------------------------------------------------
+
+        if hasattr(model, "feature_names_in_"):
+
+            expected_features = list(
+                model.feature_names_in_
+            )
+
+            input_data = input_data[
+                expected_features
+            ]
+
+        else:
+
+            if input_data.shape[1] != model.n_features_in_:
+
+                st.error(
+                    f"Model expects {model.n_features_in_} "
+                    f"features, but received "
+                    f"{input_data.shape[1]}."
+                )
+
+                st.stop()
+
+
+        # ----------------------------------------------------
+        # PREDICTION
         # ----------------------------------------------------
 
         prediction = model.predict(
-            processed_scaled
+            input_data
         )[0]
 
 
         # ----------------------------------------------------
-        # PREDICTION PROBABILITY
+        # PROBABILITY
         # ----------------------------------------------------
 
         probability = None
 
         if hasattr(model, "predict_proba"):
 
-            probabilities = model.predict_proba(
-                processed_scaled
-            )
-
-            probability = probabilities[0][1]
+            probability = model.predict_proba(
+                input_data
+            )[0][1]
 
 
         # ====================================================
         # DISPLAY RESULT
         # ====================================================
 
-        st.header("Prediction Result")
+        st.subheader("Prediction Result")
 
 
         if prediction == 1:
@@ -317,23 +370,20 @@ if st.button(
                 f"{probability * 100:.2f}%"
             )
 
-
             st.progress(
                 float(probability)
             )
 
 
         # ----------------------------------------------------
-        # SHOW PROCESSED DATA
+        # SHOW DATA USED FOR PREDICTION
         # ----------------------------------------------------
 
         with st.expander(
             "🔍 View Processed Input"
         ):
 
-            st.dataframe(
-                processed_data
-            )
+            st.dataframe(input_data)
 
 
     except Exception as e:
